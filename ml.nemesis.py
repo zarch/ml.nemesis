@@ -28,6 +28,11 @@
 #%  description: Group name
 #%  required: yes
 #%end
+#%option G_OPT_R_INPUTS
+#%  key: rast
+#%  description: Name of raster map(s) to include in group
+#%  required: yes
+#%end
 #%option
 #%  key: hdf
 #%  type: string
@@ -242,6 +247,8 @@ sup = GridModule(cmd='ml.super', group='rgb',
     absthdf = os.path.abspath(opts['training_hdf'])
     print(cwd, abstconf, absthdf)
     os.chdir(mps.path())
+    igrp = Module('i.group')
+    igrp(group=opts['group'], input=opts['rast'].split(','))
     segstats = Module('ml.segstats')
     segstats(group=opts['group'], hdf=opts['hdf'],
              seg_thresholds=opts['thrs'], seg_opts=opts['seg_opts'],
