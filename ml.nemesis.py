@@ -150,15 +150,41 @@
 #%  answer:
 #%  guisection: Training
 #%end
+#%option
+#%  key: transform
+#%  type: string
+#%  options: nothing,standardize,normalize
+#%  description: Choose the traformation function of the statistics data of the segments
+#%  required: no
+#%  answer: nothing
+#%end
+#%option
+#%  key: out_class
+#%  type: string
+#%  description: Name of the label in the HDF, to save the classification results
+#%  required: no
+#%  answer: %s
+#%end
 #%option G_OPT_R_OUTPUT
 #%  key: output
 #%  description: Name for the classify map
 #%  required: yes
 #%end
+#%option
+#%  key: area_size
+#%  type: integer
+#%  description: Use only areas greater then N pixels
+#%  required: no
+#%  answer: 0
+#%end
+#%flag
+#%  key: r
+#%  description: Compute only statistics
+#%end
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 import os
-import sys
+import imp
 
 try:
     import pandas as pnd
@@ -189,7 +215,6 @@ def new_tab(hdf, table, newtable, keys):
     tab = pnd.read_hdf(hdf, table)
     for k in keys:
         tab[k] = pnd.read_hdf(hdf, k)
-    import ipdb; ipdb.set_trace()
     tab.to_hdf(hdf, newtable)
 
 
@@ -253,29 +278,70 @@ sup = GridModule(cmd='ml.super', group='rgb',
     segstats(group=opts['group'], hdf=opts['hdf'],
              seg_thresholds=opts['thrs'], seg_opts=opts['seg_opts'],
              seg_name=opts['seg_name'], stat_results=opts['data'],
-             flags='sr', overwrite=True)
-    #import ipdb; ipdb.set_trace()
+             overwrite=True,
+             flags='r' if 'r' in flags and flags['r'] else 'sr')
+
     classify = Module('ml.classify')
     classify(data=opts['data'],
              training_conf=abstconf,
              training_mls=opts['training_mls'],
              training_hdf=absthdf,
              training_kchk=opts['training_kchk1'],
-             training_ychk=opts['training_ychk'], hdf=opts['hdf'])
-    #import ipdb; ipdb.set_trace()
-#    conf = imp.load_source("conf", abstconf)
-#    mls = getattr(conf, opts['training_mls'])
-#    new_tab(opts['hdf'], opts['data'], opts['datasum'], mls.keys())
-#    classify(data=opts['datasum'],
-#             training_conf=abstconf,
-#             training_mls=opts['training_mls'],
-#             training_hdf=absthdf,
-#             training_kchk=opts['training_kchk2'],
-#             training_ychk=opts['training_ychk'],
-#             training_key=opts['training_key'], hdf=opts['hdf'])
+             training_ychk=opts['training_ychk'],
+             training_number=int(opts['training_number']),
+             transform=opts['transform'],
+             hdf=opts['hdf'],
+             out_class=opts['out_class'],
+             area_size=int(opts['area_size']))
+
+
     torast = Module('ml.toraster')
-    torast(segment=opts['seg_name'] % opts['thrs'][-1], hdf=opts['hdf'],
-           mlname=opts['training_key'], output=opts['output'])
+    seg = opts['seg_name'] % opts['thrs'][-1] if "%" in opts['seg_name'] else opts['seg_name']
+#    hist = 'ml.nemesis(%s)' % ", ".join(["%s=%r" % (k, v) for k, v in sorted(opts.items())])
+#    torast(segment=seg, hdf=opts['hdf'],
+#           mlname='tree', output='ftree',
+#           hist=hist)
+#    torast(segment=seg, hdf=opts['hdf'],
+#           mlname='knn', output='fknn',
+#           hist=hist)
+#    torast(segment=seg, hdf=opts['hdf'],
+#           mlname='svm', output='fsvm',
+#           hist=hist)
+
+    conf = imp.load_source("conf", abstconf)
+    mls = getattr(conf, opts['training_mls'])
+    new_tab(opts['hdf'], opts['data'], opts['datasum'], sorted(mls.keys()))
+    classify(data=opts['datasum'],
+             training_conf=abstconf,
+             training_mls=opts['training_mls'],
+             training_hdf=absthdf,
+             training_kchk=opts['training_kchk2'],
+             training_ychk=opts['training_ychk'],
+             #training_key=opts['training_key'],
+             training_number=0,
+             transform=opts['transform'],
+             hdf=opts['hdf'],
+             out_class="last__%s" % opts['out_class'],
+             area_size=int(opts['area_size']))
+
+
+    hist = 'ml.nemesis(%s)' % ", ".join(["%s=%r" % (k, v) for k, v in sorted(opts.items())])
+    torast(segment=seg, hdf=opts['hdf'],
+           mlname=opts['training_key'], output=opts['output'],
+           hist=hist)
+#    torast(segment=seg, hdf=opts['hdf'],
+#           mlname='last__tree', output='fuck_tree',
+#           hist=hist)
+#    torast(segment=seg, hdf=opts['hdf'],
+#           mlname='last__svm', output='fuck_svm',
+#           hist=hist)
+#    torast(segment=seg, hdf=opts['hdf'],
+#           mlname='last__knn', output='fuck_knn',
+#           hist=hist)
+#    rnull = Module('r.null')
+#    rnull(map=opts['output'], setnull=0)
+#    rfill = Module('r.fillnulls')
+#    rfill(input=opts['output'], output=opts['output'] + '__fill')
     os.chdir(cwd)
 
 
