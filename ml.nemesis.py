@@ -177,6 +177,14 @@
 #%  required: no
 #%  answer: 0
 #%end
+#%option
+#%  key: visible
+#%  type: string
+#%  multiple: yes
+#%  description: Name of visible mapsets
+#%  required: no
+#%  answer: %s
+#%end
 #%flag
 #%  key: r
 #%  description: Compute only statistics
@@ -267,6 +275,8 @@ sup = GridModule(cmd='ml.super', group='rgb',
 
     """
     mps = Mapset()
+    if opts['visible']:
+        mps.visible.extend(opts['visible'].split(','))
     cwd = os.getcwd()
     abstconf = os.path.abspath(opts['training_conf'])
     absthdf = os.path.abspath(opts['training_hdf'])
